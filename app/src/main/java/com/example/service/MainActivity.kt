@@ -11,7 +11,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
@@ -21,10 +20,11 @@ class MainActivity : AppCompatActivity() {
 
     private val locationPermissionRequest =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+            val coarseLocationGranted = permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+            val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] ?: false
             val postNotificationsGranted = permissions[android.Manifest.permission.POST_NOTIFICATIONS] ?: false
 
-            if (fineLocationGranted && postNotificationsGranted) {
+            if (fineLocationGranted && coarseLocationGranted && postNotificationsGranted) {
                 startLocationService()
             } else {
                 Toast.makeText(this, "Not enough permissions", Toast.LENGTH_SHORT).show()
@@ -41,8 +41,12 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        findViewById<Button>(R.id.button).setOnClickListener {
+        findViewById<Button>(R.id.start_service).setOnClickListener {
             requestPermissions()
+        }
+
+        findViewById<Button>(R.id.stop_service).setOnClickListener {
+            stopLocationService()
         }
 
         startWork()
@@ -54,12 +58,16 @@ class MainActivity : AppCompatActivity() {
                 android.Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
                 this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                this,
                 android.Manifest.permission.POST_NOTIFICATIONS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             locationPermissionRequest.launch(
                 arrayOf(
                     android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
                     android.Manifest.permission.POST_NOTIFICATIONS
                 )
             )
@@ -69,7 +77,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startLocationService() {
-        val serviceIntent = Intent(this, LocationForegroundService::class.java)
+        val serviceIntent = Intent(this, LocationForegroundService::class.java).apply {
+            action = LocationForegroundService.ACTION_START
+        }
+        startForegroundService(serviceIntent)
+    }
+
+    private fun stopLocationService() {
+        val serviceIntent = Intent(this, LocationForegroundService::class.java).apply {
+            action = LocationForegroundService.ACTION_STOP
+        }
         startForegroundService(serviceIntent)
     }
 
